@@ -255,6 +255,9 @@ animationDelay: piece.delay,
 <div>
 <h1 style={styles.title}>Pattern Shift</h1>
 <p style={styles.subtitle}>
+by LucasLabs
+</p>
+<p style={styles.subtitle}>
 Rotate the tiles until every glowing line matches the hidden pattern.
 </p>
 </div>
