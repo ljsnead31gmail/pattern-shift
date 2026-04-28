@@ -7,3 +7,19 @@ body {
 margin: 0;
 padding: 0;
 }
+
+button {
+font-family: inherit;
+}
+
+@keyframes fall {
+0% {
+transform: translateY(-30px) rotate(0deg);
+opacity: 1;
+}
+
+100% {
+transform: translateY(110vh) rotate(540deg);
+opacity: 0;
+}
+}
