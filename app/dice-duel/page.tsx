@@ -1,9 +1,15 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
-type GameState = "ready" | "player" | "ai" | "roundOver" | "complete" | "failed";
+type GameState =
+| "ready"
+| "player"
+| "ai"
+| "roundOver"
+| "complete"
+| "failed";
+
 type Die = {
 id: number;
 value: number;
@@ -14,10 +20,12 @@ const TOTAL_LEVELS = 45;
 const STARTING_HEALTH = 30;
 
 function levelSettings(level: number) {
+const diceCount = Math.min(3 + Math.floor((level - 1) / 8), 6);
+
 return {
 aiHealth: 22 + level * 4,
-aiDice: Math.min(2 + Math.floor(level / 7), 6),
-playerDice: Math.min(3 + Math.floor(level / 10), 6),
+playerDice: diceCount,
+aiDice: diceCount,
 rerolls: Math.max(3 - Math.floor(level / 16), 1),
 aiBonus: Math.floor(level / 6),
 };
@@ -41,12 +49,14 @@ return dice.reduce((sum, die) => sum + die.value, 0);
 
 function scoreDice(dice: Die[]) {
 const total = sumDice(dice);
+
 const counts = dice.reduce<Record<number, number>>((acc, die) => {
 acc[die.value] = (acc[die.value] ?? 0) + 1;
 return acc;
 }, {});
 
 const maxMatch = Math.max(...Object.values(counts));
+
 const hasStraight =
 [1, 2, 3, 4, 5].every((n) => counts[n]) ||
 [2, 3, 4, 5, 6].every((n) => counts[n]);
@@ -71,7 +81,12 @@ bonus = 4;
 label = "Pair!";
 }
 
-return { damage: total + bonus, total, bonus, label };
+return {
+damage: total + bonus,
+total,
+bonus,
+label,
+};
 }
 
 export default function Page() {
@@ -81,7 +96,9 @@ const settings = useMemo(() => levelSettings(level), [level]);
 const [state, setState] = useState<GameState>("ready");
 const [playerHealth, setPlayerHealth] = useState(STARTING_HEALTH);
 const [aiHealth, setAiHealth] = useState(settings.aiHealth);
-const [playerDice, setPlayerDice] = useState<Die[]>(makeDice(settings.playerDice));
+const [playerDice, setPlayerDice] = useState<Die[]>(
+makeDice(settings.playerDice)
+);
 const [aiDice, setAiDice] = useState<Die[]>(makeDice(settings.aiDice));
 const [rerollsLeft, setRerollsLeft] = useState(settings.rerolls);
 const [round, setRound] = useState(1);
@@ -100,7 +117,7 @@ setAiHealth(settings.aiHealth);
 setPlayerDice(makeDice(settings.playerDice));
 setAiDice(makeDice(settings.aiDice));
 setRerollsLeft(settings.rerolls);
-}, [settings.aiDice, settings.aiHealth, settings.playerDice, settings.rerolls]);
+}, [settings.aiHealth, settings.playerDice, settings.aiDice, settings.rerolls]);
 
 function startDuel() {
 setPlayerHealth(STARTING_HEALTH);
@@ -109,7 +126,7 @@ setPlayerDice(makeDice(settings.playerDice));
 setAiDice(makeDice(settings.aiDice));
 setRerollsLeft(settings.rerolls);
 setRound(1);
-setMessage("Lock dice you like, reroll the rest, then attack.");
+setMessage("Lock dice, reroll the rest, then attack.");
 setState("player");
 }
 
@@ -143,7 +160,7 @@ const result = scoreDice(playerDice);
 const nextAiHealth = Math.max(0, aiHealth - result.damage);
 
 setAiHealth(nextAiHealth);
-setMessage(`${result.label} You dealt ${result.damage} damage.`);
+setMessage(`${result.label}: You dealt ${result.damage} damage.`);
 
 if (nextAiHealth <= 0) {
 setState("complete");
@@ -156,7 +173,7 @@ setState("ai");
 
 setTimeout(() => {
 aiTurn();
-}, 900);
+}, 850);
 }
 
 function aiTurn() {
@@ -232,7 +249,8 @@ return (
 <div>
 <h1 style={styles.title}>Dice Duel</h1>
 <p style={styles.subtitle}>
-Lock dice, reroll the rest, and outscore the AI before it knocks you out.
+Lock dice, reroll the rest, and outscore the AI before it knocks
+you out.
 </p>
 </div>
 
@@ -249,6 +267,7 @@ Level {level}/{TOTAL_LEVELS}
 <div style={styles.board}>
 <div style={styles.side}>
 <h2 style={styles.sideTitle}>Your Dice</h2>
+
 <div style={styles.diceRow}>
 {playerDice.map((die) => (
 <button
@@ -263,6 +282,7 @@ style={{
 </button>
 ))}
 </div>
+
 <p style={styles.scoreText}>
 {playerScore.label}: {playerScore.damage} damage
 </p>
@@ -270,6 +290,7 @@ style={{
 
 <div style={styles.side}>
 <h2 style={styles.sideTitle}>AI Dice</h2>
+
 <div style={styles.diceRow}>
 {aiDice.map((die) => (
 <div key={die.id} style={{ ...styles.die, ...styles.aiDie }}>
@@ -277,6 +298,7 @@ style={{
 </div>
 ))}
 </div>
+
 <p style={styles.scoreText}>
 {aiScore.label}: {aiScore.damage + settings.aiBonus} damage
 </p>
@@ -290,10 +312,12 @@ style={{
 <strong>{round}</strong>
 <span>Round</span>
 </div>
+
 <div style={styles.statBox}>
 <strong>{rerollsLeft}</strong>
 <span>Rerolls</span>
 </div>
+
 <div style={styles.statBox}>
 <strong>{settings.aiBonus}</strong>
 <span>AI Bonus</span>
@@ -317,15 +341,14 @@ opacity: rerollsLeft <= 0 ? 0.5 : 1,
 >
 Reroll Unlocked Dice
 </button>
+
 <button onClick={playerAttack} style={styles.primary}>
 Attack
 </button>
 </>
 )}
 
-{state === "ai" && (
-<button style={styles.disabled}>AI Thinking...</button>
-)}
+{state === "ai" && <button style={styles.disabled}>AI Thinking...</button>}
 
 {state === "roundOver" && (
 <button onClick={nextRound} style={styles.primary}>
@@ -348,6 +371,30 @@ Try Again
 <button onClick={restartGame} style={styles.danger}>
 Restart From Level 1
 </button>
+
+<section style={styles.howTo}>
+<h2 style={styles.howTitle}>How to Play</h2>
+
+<div style={styles.howRow}>
+<span style={styles.howIcon}>🎲</span>
+<span>Tap dice to lock them.</span>
+</div>
+
+<div style={styles.howRow}>
+<span style={styles.howIcon}>🔁</span>
+<span>Reroll the unlocked dice.</span>
+</div>
+
+<div style={styles.howRow}>
+<span style={styles.howIcon}>⚔️</span>
+<span>Attack to deal damage to the AI.</span>
+</div>
+
+<div style={styles.howRow}>
+<span style={styles.howIcon}>🛡️</span>
+<span>If the AI reduces your health to 0, you lose.</span>
+</div>
+</section>
 </section>
 </main>
 );
@@ -372,6 +419,7 @@ return (
 {health}/{max}
 </span>
 </div>
+
 <div style={styles.healthTrack}>
 <div style={{ ...styles.healthFill, width: `${percent}%` }} />
 </div>
@@ -394,7 +442,7 @@ alignItems: "center",
 },
 
 card: {
-width: "min(980px, 100%)",
+width: "min(1040px, 100%)",
 padding: "clamp(18px, 4vw, 34px)",
 borderRadius: 32,
 background: "rgba(15,23,42,0.84)",
@@ -419,51 +467,55 @@ flexWrap: "wrap",
 },
 
 title: {
-fontSize: "clamp(42px, 8vw, 76px)",
+fontSize: "clamp(46px, 8vw, 84px)",
 margin: 0,
 fontWeight: 950,
-letterSpacing: "-3px",
+letterSpacing: "-4px",
 textShadow: "0 0 28px rgba(251,146,60,0.35)",
 },
 
 subtitle: {
-color: "#cbd5e1",
-fontSize: "clamp(15px, 3vw, 19px)",
+color: "#e2e8f0",
+fontSize: "clamp(15px, 3vw, 20px)",
 marginTop: 8,
-maxWidth: 620,
+maxWidth: 720,
+lineHeight: 1.45,
 },
 
 levelBadge: {
-padding: "12px 18px",
+padding: "14px 20px",
 borderRadius: 999,
 background: "rgba(251,146,60,0.14)",
-border: "1px solid rgba(251,146,60,0.35)",
+border: "1px solid rgba(251,146,60,0.45)",
 color: "#fed7aa",
 fontWeight: 900,
+boxShadow: "0 0 24px rgba(251,146,60,0.18)",
 },
 
 healthRow: {
-marginTop: 24,
+marginTop: 28,
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-gap: 14,
+gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+gap: 18,
 },
 
 healthBox: {
-borderRadius: 18,
-padding: 16,
-background: "rgba(30,41,59,0.86)",
-border: "1px solid rgba(251,146,60,0.18)",
+borderRadius: 20,
+padding: 18,
+background: "rgba(30,41,59,0.82)",
+border: "1px solid rgba(148,163,184,0.22)",
+boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
 },
 
 healthTop: {
 display: "flex",
 justifyContent: "space-between",
-marginBottom: 10,
+marginBottom: 12,
+fontWeight: 900,
 },
 
 healthTrack: {
-height: 12,
+height: 14,
 borderRadius: 999,
 background: "rgba(255,255,255,0.12)",
 overflow: "hidden",
@@ -472,26 +524,29 @@ overflow: "hidden",
 healthFill: {
 height: "100%",
 borderRadius: 999,
-background: "linear-gradient(90deg, #fb923c, #fed7aa)",
+background: "linear-gradient(90deg, #fb923c, #fde68a)",
+boxShadow: "0 0 18px rgba(251,146,60,0.55)",
 transition: "width 180ms ease",
 },
 
 board: {
 marginTop: 24,
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-gap: 18,
+gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+gap: 22,
 },
 
 side: {
-padding: 18,
+padding: 22,
 borderRadius: 24,
 background: "rgba(2,6,23,0.45)",
-border: "1px solid rgba(251,146,60,0.18)",
+border: "1px solid rgba(148,163,184,0.18)",
+boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
 },
 
 sideTitle: {
-margin: "0 0 14px",
+margin: "0 0 18px",
+fontSize: 28,
 },
 
 diceRow: {
@@ -501,13 +556,13 @@ gap: 12,
 },
 
 die: {
-width: 64,
-height: 64,
+width: 68,
+height: 68,
 borderRadius: 18,
-border: "2px solid rgba(255,255,255,0.65)",
-background: "linear-gradient(145deg, #fed7aa, #fb923c)",
+border: "2px solid rgba(255,255,255,0.78)",
+background: "linear-gradient(145deg, #fde68a, #f59e0b)",
 color: "#431407",
-fontSize: 32,
+fontSize: 34,
 fontWeight: 950,
 cursor: "pointer",
 boxShadow: "0 0 30px rgba(251,146,60,0.45)",
@@ -517,22 +572,25 @@ transition: "transform 140ms ease, opacity 140ms ease",
 lockedDie: {
 transform: "scale(0.92)",
 background: "linear-gradient(145deg, #bbf7d0, #22c55e)",
+boxShadow: "0 0 30px rgba(34,197,94,0.45)",
 },
 
 aiDie: {
 cursor: "default",
 background: "linear-gradient(145deg, #fecaca, #ef4444)",
+boxShadow: "0 0 30px rgba(239,68,68,0.38)",
 },
 
 scoreText: {
 color: "#ffedd5",
-fontWeight: 800,
+fontWeight: 900,
+marginTop: 16,
 },
 
 status: {
-marginTop: 18,
+marginTop: 22,
 textAlign: "center",
-fontWeight: 900,
+fontWeight: 950,
 color: "#ffedd5",
 fontSize: 18,
 minHeight: 28,
@@ -541,15 +599,15 @@ minHeight: 28,
 stats: {
 marginTop: 18,
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
 gap: 12,
 },
 
 statBox: {
 borderRadius: 18,
-padding: 14,
+padding: 16,
 background: "rgba(30,41,59,0.86)",
-border: "1px solid rgba(251,146,60,0.18)",
+border: "1px solid rgba(148,163,184,0.18)",
 display: "flex",
 flexDirection: "column",
 textAlign: "center",
@@ -559,10 +617,10 @@ gap: 4,
 primary: {
 width: "100%",
 marginTop: 18,
-padding: 16,
+padding: 18,
 borderRadius: 18,
 border: "none",
-background: "linear-gradient(135deg, #fed7aa, #fb923c)",
+background: "linear-gradient(135deg, #fde68a, #f59e0b)",
 color: "#431407",
 fontWeight: 950,
 fontSize: 17,
@@ -603,5 +661,32 @@ background: "rgba(127,29,29,0.45)",
 color: "#fecaca",
 fontWeight: 900,
 cursor: "pointer",
+},
+
+howTo: {
+marginTop: 28,
+padding: 26,
+borderRadius: 28,
+background: "rgba(2,6,23,0.42)",
+border: "1px solid rgba(251,146,60,0.22)",
+},
+
+howTitle: {
+marginTop: 0,
+fontSize: 26,
+},
+
+howRow: {
+display: "flex",
+alignItems: "center",
+gap: 16,
+color: "#f8fafc",
+fontSize: 18,
+marginTop: 16,
+},
+
+howIcon: {
+fontSize: 28,
+width: 36,
 },
 };
