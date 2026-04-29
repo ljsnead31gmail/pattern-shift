@@ -28,7 +28,6 @@ function levelSettings(level: number) {
 const dotCount = Math.min(1 + Math.floor((level - 1) / 5), 10);
 const speed = 2.2 + level * 0.18;
 const targetScore = 350 + level * 75;
-
 return { dotCount, speed, targetScore };
 }
 
@@ -85,7 +84,9 @@ dots.forEach((dot) => {
 const elapsed = Math.max(0, now - startTimeRef.current - dot.delay);
 const slowFactor = slowMo ? 0.35 : 1;
 const cycle = width + dot.size * 2;
-const x = ((elapsed * dot.speed * 0.06 * slowFactor) % cycle) - dot.size;
+const x =
+((elapsed * dot.speed * 0.06 * slowFactor) % cycle) - dot.size;
+
 nextPositions[dot.id] = x;
 });
 
@@ -106,7 +107,8 @@ setCombo(0);
 setBestCombo(0);
 setMisses(0);
 setLastHit(null);
-setMessage("Hit the dot when it crosses the center line");
+setSlowMo(false);
+setMessage("Tap anywhere when a dot crosses the center line");
 setState("playing");
 }
 
@@ -134,29 +136,38 @@ localStorage.setItem("centerStrikeLevel", "1");
 resetLevel();
 }
 
-function tapDot(dot: Dot) {
+function handlePlayAreaTap() {
 if (state !== "playing") return;
 
 const areaWidth = areaRef.current?.clientWidth ?? 800;
 const center = areaWidth / 2;
+
+let closestDistance = Infinity;
+let closestDotCenter = 0;
+
+dots.forEach((dot) => {
 const dotCenter = (positions[dot.id] ?? -999) + dot.size / 2;
 const distance = Math.abs(dotCenter - center);
-const isEarly = dotCenter < center;
+
+if (distance < closestDistance) {
+closestDistance = distance;
+closestDotCenter = dotCenter;
+}
+});
+
+const isEarly = closestDotCenter < center;
 
 let quality: HitQuality = "Miss";
 let points = 0;
 
-if (distance <= perfectZone) {
+if (closestDistance <= perfectZone) {
 quality = "Perfect";
 points = 100;
 setSlowMo(true);
 setTimeout(() => setSlowMo(false), 260);
-} else if (distance <= tolerance) {
+} else if (closestDistance <= tolerance) {
 quality = isEarly ? "Early" : "Late";
 points = 50;
-} else {
-quality = "Miss";
-points = 0;
 }
 
 if (quality === "Miss") {
@@ -198,41 +209,31 @@ setMessage("Level complete!");
 return (
 <main style={styles.page}>
 <section style={styles.card}>
-<a href="/" style={styles.back}>← Arcade</a>
+<a href="/" style={styles.back}>
+← Arcade
+</a>
 
 <div style={styles.header}>
 <div>
 <h1 style={styles.title}>Center Strike</h1>
 <p style={styles.subtitle}>
-Tap moving dots as they cross the center line. Perfect hits build your combo.
+Tap anywhere when a moving dot crosses the center line.
 </p>
 </div>
 
-<div style={styles.levelBadge}>Level {level}/{TOTAL_LEVELS}</div>
+<div style={styles.levelBadge}>
+Level {level}/{TOTAL_LEVELS}
+</div>
 </div>
 
-<div ref={areaRef} style={styles.playArea}>
-<div
-style={{
-...styles.hitZone,
-width: tolerance * 2,
-}}
-/>
-<div
-style={{
-...styles.perfectZone,
-width: perfectZone * 2,
-}}
-/>
+<div ref={areaRef} style={styles.playArea} onPointerDown={handlePlayAreaTap}>
+<div style={{ ...styles.hitZone, width: tolerance * 2 }} />
+<div style={{ ...styles.perfectZone, width: perfectZone * 2 }} />
 <div style={styles.centerLine} />
 
 {dots.map((dot) => (
-<button
+<div
 key={dot.id}
-onClick={(e) => {
-e.stopPropagation();
-tapDot(dot);
-}}
 style={{
 ...styles.dot,
 top: `${dot.y}%`,
@@ -244,7 +245,6 @@ transform: `translateX(${positions[dot.id] ?? -60}px) ${
 slowMo ? "scale(1.15)" : "scale(1)"
 }`,
 }}
-aria-label="Tap moving dot"
 />
 ))}
 </div>
@@ -326,7 +326,6 @@ display: "flex",
 justifyContent: "center",
 alignItems: "center",
 },
-
 card: {
 width: "min(920px, 100%)",
 padding: "clamp(18px, 4vw, 34px)",
@@ -336,13 +335,11 @@ border: "1px solid rgba(148,163,184,0.25)",
 boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
 backdropFilter: "blur(16px)",
 },
-
 back: {
 color: "#67e8f9",
 textDecoration: "none",
 fontWeight: 800,
 },
-
 header: {
 marginTop: 18,
 display: "flex",
@@ -351,7 +348,6 @@ gap: 18,
 alignItems: "flex-start",
 flexWrap: "wrap",
 },
-
 title: {
 fontSize: "clamp(42px, 8vw, 76px)",
 margin: 0,
@@ -359,13 +355,11 @@ fontWeight: 950,
 letterSpacing: "-3px",
 textShadow: "0 0 28px rgba(34,211,238,0.35)",
 },
-
 subtitle: {
 color: "#cbd5e1",
 fontSize: "clamp(15px, 3vw, 19px)",
 marginTop: 8,
 },
-
 levelBadge: {
 padding: "12px 18px",
 borderRadius: 999,
@@ -374,7 +368,6 @@ border: "1px solid rgba(34,211,238,0.35)",
 color: "#a5f3fc",
 fontWeight: 900,
 },
-
 playArea: {
 marginTop: 28,
 height: "clamp(300px, 55vh, 500px)",
@@ -387,8 +380,8 @@ border: "1px solid rgba(148,163,184,0.28)",
 boxShadow:
 "inset 0 0 50px rgba(34,211,238,0.08), 0 20px 60px rgba(0,0,0,0.38)",
 touchAction: "manipulation",
+cursor: "pointer",
 },
-
 hitZone: {
 position: "absolute",
 top: 0,
@@ -398,7 +391,6 @@ transform: "translateX(-50%)",
 background: "rgba(34,211,238,0.08)",
 zIndex: 0,
 },
-
 perfectZone: {
 position: "absolute",
 top: 0,
@@ -408,7 +400,6 @@ transform: "translateX(-50%)",
 background: "rgba(16,185,129,0.16)",
 zIndex: 0,
 },
-
 centerLine: {
 position: "absolute",
 top: 0,
@@ -420,18 +411,15 @@ background: "rgba(255,255,255,0.95)",
 boxShadow: "0 0 28px rgba(255,255,255,0.8)",
 zIndex: 1,
 },
-
 dot: {
 position: "absolute",
 left: 0,
 borderRadius: "50%",
 border: "none",
-cursor: "pointer",
 zIndex: 2,
+pointerEvents: "none",
 transition: "transform 90ms ease, box-shadow 120ms ease",
-WebkitTapHighlightColor: "transparent",
 },
-
 status: {
 marginTop: 18,
 textAlign: "center",
@@ -440,7 +428,6 @@ color: "#e0f2fe",
 fontSize: 18,
 minHeight: 28,
 },
-
 hitLabel: {
 display: "inline-block",
 marginRight: 10,
@@ -449,14 +436,12 @@ borderRadius: 999,
 background: "rgba(34,211,238,0.18)",
 color: "#a5f3fc",
 },
-
 stats: {
 marginTop: 18,
 display: "grid",
 gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
 gap: 12,
 },
-
 statBox: {
 borderRadius: 18,
 padding: 14,
@@ -467,7 +452,6 @@ flexDirection: "column",
 textAlign: "center",
 gap: 4,
 },
-
 primary: {
 width: "100%",
 marginTop: 18,
@@ -481,7 +465,6 @@ fontSize: 17,
 cursor: "pointer",
 boxShadow: "0 0 30px rgba(34,211,238,0.45)",
 },
-
 secondary: {
 width: "100%",
 marginTop: 18,
@@ -493,7 +476,6 @@ color: "white",
 fontWeight: 900,
 cursor: "pointer",
 },
-
 danger: {
 width: "100%",
 marginTop: 10,
