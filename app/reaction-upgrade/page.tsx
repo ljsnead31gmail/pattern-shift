@@ -12,16 +12,24 @@ color: string;
 };
 
 type GameState = "ready" | "playing" | "complete" | "failed";
+type HitQuality = "Perfect" | "Early" | "Late" | "Miss";
 
 const TOTAL_LEVELS = 45;
-const CENTER_TOLERANCE = 70;
+
+function getTolerance(level: number) {
+return Math.max(80 - level * 1.2, 28);
+}
+
+function getPerfectZone(level: number) {
+return Math.max(24 - level * 0.25, 14);
+}
 
 function levelSettings(level: number) {
 const dotCount = Math.min(1 + Math.floor((level - 1) / 5), 10);
 const speed = 2.2 + level * 0.18;
-const targetHits = Math.min(3 + Math.floor(level / 3), 18);
+const targetScore = 350 + level * 75;
 
-return { dotCount, speed, targetHits };
+return { dotCount, speed, targetScore };
 }
 
 function makeDots(level: number): Dot[] {
@@ -41,9 +49,13 @@ color: colors[(i + level) % colors.length],
 export default function Page() {
 const [level, setLevel] = useState(1);
 const [state, setState] = useState<GameState>("ready");
-const [hits, setHits] = useState(0);
+const [score, setScore] = useState(0);
+const [combo, setCombo] = useState(0);
+const [bestCombo, setBestCombo] = useState(0);
 const [misses, setMisses] = useState(0);
 const [message, setMessage] = useState("Tap Start");
+const [lastHit, setLastHit] = useState<HitQuality | null>(null);
+const [slowMo, setSlowMo] = useState(false);
 const [positions, setPositions] = useState<Record<number, number>>({});
 
 const areaRef = useRef<HTMLDivElement | null>(null);
@@ -52,9 +64,11 @@ const startTimeRef = useRef<number>(0);
 
 const dots = useMemo(() => makeDots(level), [level]);
 const settings = levelSettings(level);
+const tolerance = getTolerance(level);
+const perfectZone = getPerfectZone(level);
 
 useEffect(() => {
-const saved = localStorage.getItem("reactionUpgradeLevel");
+const saved = localStorage.getItem("centerStrikeLevel");
 if (saved) setLevel(Math.min(Number(saved), TOTAL_LEVELS));
 }, []);
 
@@ -69,8 +83,9 @@ const nextPositions: Record<number, number> = {};
 
 dots.forEach((dot) => {
 const elapsed = Math.max(0, now - startTimeRef.current - dot.delay);
+const slowFactor = slowMo ? 0.35 : 1;
 const cycle = width + dot.size * 2;
-const x = ((elapsed * dot.speed * 0.06) % cycle) - dot.size;
+const x = ((elapsed * dot.speed * 0.06 * slowFactor) % cycle) - dot.size;
 nextPositions[dot.id] = x;
 });
 
@@ -83,18 +98,25 @@ frameRef.current = requestAnimationFrame(animate);
 return () => {
 if (frameRef.current) cancelAnimationFrame(frameRef.current);
 };
-}, [state, dots]);
+}, [state, dots, slowMo]);
 
 function startGame() {
-setHits(0);
+setScore(0);
+setCombo(0);
+setBestCombo(0);
 setMisses(0);
+setLastHit(null);
 setMessage("Hit the dot when it crosses the center line");
 setState("playing");
 }
 
 function resetLevel() {
-setHits(0);
+setScore(0);
+setCombo(0);
+setBestCombo(0);
 setMisses(0);
+setLastHit(null);
+setSlowMo(false);
 setMessage("Tap Start");
 setState("ready");
 }
@@ -102,16 +124,13 @@ setState("ready");
 function nextLevel() {
 const next = Math.min(level + 1, TOTAL_LEVELS);
 setLevel(next);
-localStorage.setItem("reactionUpgradeLevel", String(next));
-setHits(0);
-setMisses(0);
-setMessage("Tap Start");
-setState("ready");
+localStorage.setItem("centerStrikeLevel", String(next));
+resetLevel();
 }
 
 function restartGame() {
 setLevel(1);
-localStorage.setItem("reactionUpgradeLevel", "1");
+localStorage.setItem("centerStrikeLevel", "1");
 resetLevel();
 }
 
@@ -122,22 +141,30 @@ const areaWidth = areaRef.current?.clientWidth ?? 800;
 const center = areaWidth / 2;
 const dotCenter = (positions[dot.id] ?? -999) + dot.size / 2;
 const distance = Math.abs(dotCenter - center);
+const isEarly = dotCenter < center;
 
-if (distance <= CENTER_TOLERANCE) {
-const newHits = hits + 1;
-setHits(newHits);
-setMessage("Perfect hit!");
+let quality: HitQuality = "Miss";
+let points = 0;
 
-if (navigator.vibrate) navigator.vibrate(35);
-
-if (newHits >= settings.targetHits) {
-setState("complete");
-setMessage("Level complete!");
-}
+if (distance <= perfectZone) {
+quality = "Perfect";
+points = 100;
+setSlowMo(true);
+setTimeout(() => setSlowMo(false), 260);
+} else if (distance <= tolerance) {
+quality = isEarly ? "Early" : "Late";
+points = 50;
 } else {
+quality = "Miss";
+points = 0;
+}
+
+if (quality === "Miss") {
 const newMisses = misses + 1;
 setMisses(newMisses);
-setMessage("Missed center!");
+setCombo(0);
+setLastHit("Miss");
+setMessage("Miss! Too far from center.");
 
 if (navigator.vibrate) navigator.vibrate(80);
 
@@ -145,6 +172,26 @@ if (newMisses >= 3) {
 setState("failed");
 setMessage("Level failed — try again");
 }
+
+return;
+}
+
+const newCombo = combo + 1;
+const multiplier = 1 + Math.floor(newCombo / 5) * 0.25;
+const earned = Math.round(points * multiplier);
+const newScore = score + earned;
+
+setScore(newScore);
+setCombo(newCombo);
+setBestCombo((b) => Math.max(b, newCombo));
+setLastHit(quality);
+setMessage(`${quality}! +${earned} points x${multiplier.toFixed(2)}`);
+
+if (navigator.vibrate) navigator.vibrate(quality === "Perfect" ? 35 : 20);
+
+if (newScore >= settings.targetScore) {
+setState("complete");
+setMessage("Level complete!");
 }
 }
 
@@ -157,7 +204,7 @@ return (
 <div>
 <h1 style={styles.title}>Center Strike</h1>
 <p style={styles.subtitle}>
-Tap each moving dot as it crosses the center line.
+Tap moving dots as they cross the center line. Perfect hits build your combo.
 </p>
 </div>
 
@@ -165,6 +212,18 @@ Tap each moving dot as it crosses the center line.
 </div>
 
 <div ref={areaRef} style={styles.playArea}>
+<div
+style={{
+...styles.hitZone,
+width: tolerance * 2,
+}}
+/>
+<div
+style={{
+...styles.perfectZone,
+width: perfectZone * 2,
+}}
+/>
 <div style={styles.centerLine} />
 
 {dots.map((dot) => (
@@ -181,23 +240,36 @@ width: dot.size,
 height: dot.size,
 background: dot.color,
 boxShadow: `0 0 22px ${dot.color}`,
-transform: `translateX(${positions[dot.id] ?? -60}px)`,
+transform: `translateX(${positions[dot.id] ?? -60}px) ${
+slowMo ? "scale(1.15)" : "scale(1)"
+}`,
 }}
 aria-label="Tap moving dot"
 />
 ))}
 </div>
 
-<div style={styles.status}>{message}</div>
+<div style={styles.status}>
+{lastHit && <span style={styles.hitLabel}>{lastHit}</span>}
+{message}
+</div>
 
 <div style={styles.stats}>
 <div style={styles.statBox}>
-<strong>{hits}</strong>
-<span>Hits</span>
+<strong>{score}</strong>
+<span>Score</span>
 </div>
 <div style={styles.statBox}>
-<strong>{settings.targetHits}</strong>
+<strong>{settings.targetScore}</strong>
 <span>Goal</span>
+</div>
+<div style={styles.statBox}>
+<strong>{combo}</strong>
+<span>Combo</span>
+</div>
+<div style={styles.statBox}>
+<strong>{bestCombo}</strong>
+<span>Best Combo</span>
 </div>
 <div style={styles.statBox}>
 <strong>{misses}/3</strong>
@@ -317,6 +389,26 @@ boxShadow:
 touchAction: "manipulation",
 },
 
+hitZone: {
+position: "absolute",
+top: 0,
+bottom: 0,
+left: "50%",
+transform: "translateX(-50%)",
+background: "rgba(34,211,238,0.08)",
+zIndex: 0,
+},
+
+perfectZone: {
+position: "absolute",
+top: 0,
+bottom: 0,
+left: "50%",
+transform: "translateX(-50%)",
+background: "rgba(16,185,129,0.16)",
+zIndex: 0,
+},
+
 centerLine: {
 position: "absolute",
 top: 0,
@@ -324,7 +416,7 @@ bottom: 0,
 left: "50%",
 width: 4,
 transform: "translateX(-50%)",
-background: "rgba(255,255,255,0.9)",
+background: "rgba(255,255,255,0.95)",
 boxShadow: "0 0 28px rgba(255,255,255,0.8)",
 zIndex: 1,
 },
@@ -336,7 +428,7 @@ borderRadius: "50%",
 border: "none",
 cursor: "pointer",
 zIndex: 2,
-transition: "box-shadow 120ms ease, scale 120ms ease",
+transition: "transform 90ms ease, box-shadow 120ms ease",
 WebkitTapHighlightColor: "transparent",
 },
 
@@ -346,12 +438,22 @@ textAlign: "center",
 fontWeight: 900,
 color: "#e0f2fe",
 fontSize: 18,
+minHeight: 28,
+},
+
+hitLabel: {
+display: "inline-block",
+marginRight: 10,
+padding: "4px 10px",
+borderRadius: 999,
+background: "rgba(34,211,238,0.18)",
+color: "#a5f3fc",
 },
 
 stats: {
 marginTop: 18,
 display: "grid",
-gridTemplateColumns: "repeat(4, 1fr)",
+gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
 gap: 12,
 },
 
