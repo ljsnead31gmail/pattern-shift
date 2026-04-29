@@ -98,7 +98,7 @@ return (
 <rect
 x="5"
 y="5"
-width="24"
+width="44"
 height="44"
 rx="14"
 fill="rgba(15,23,42,0.95)"
