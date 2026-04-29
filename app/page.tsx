@@ -103,7 +103,7 @@ height="44"
 rx="14"
 fill="rgba(15,23,42,0.95)"
 stroke="#22d3ee"
-strokeWidth="2.5"xf
+strokeWidth="2.5"
 />
 
 <path
