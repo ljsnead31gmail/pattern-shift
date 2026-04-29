@@ -17,11 +17,11 @@ type HitQuality = "Perfect" | "Early" | "Late" | "Miss";
 const TOTAL_LEVELS = 45;
 
 function getTolerance(level: number) {
-return Math.max(80 - level * 1.2, 28);
+return Math.max(90 - level * 1.2, 32);
 }
 
 function getPerfectZone(level: number) {
-return Math.max(24 - level * 0.25, 14);
+return Math.max(28 - level * 0.25, 14);
 }
 
 function levelSettings(level: number) {
@@ -40,8 +40,23 @@ id: i,
 y: 18 + ((i * 67 + level * 13) % 68),
 size: Math.max(18, 34 - Math.floor(level / 5)),
 speed: speed + i * 0.25,
-delay: i * 500,
+delay: 0,
 color: colors[(i + level) % colors.length],
+}));
+}
+
+function shuffleDots(dots: Dot[]) {
+const copy = [...dots];
+
+for (let i = copy.length - 1; i > 0; i--) {
+const j = Math.floor(Math.random() * (i + 1));
+[copy[i], copy[j]] = [copy[j], copy[i]];
+}
+
+return copy.map((dot, index) => ({
+...dot,
+id: index,
+y: 15 + Math.floor(Math.random() * 70),
 }));
 }
 
@@ -55,16 +70,20 @@ const [misses, setMisses] = useState(0);
 const [message, setMessage] = useState("Tap Start");
 const [lastHit, setLastHit] = useState<HitQuality | null>(null);
 const [slowMo, setSlowMo] = useState(false);
-const [positions, setPositions] = useState<Record<number, number>>({});
+const [position, setPosition] = useState(-60);
+const [activeDotIndex, setActiveDotIndex] = useState(0);
+const [dotRun, setDotRun] = useState<Dot[]>([]);
 
 const areaRef = useRef<HTMLDivElement | null>(null);
 const frameRef = useRef<number | null>(null);
 const startTimeRef = useRef<number>(0);
 
-const dots = useMemo(() => makeDots(level), [level]);
+const baseDots = useMemo(() => makeDots(level), [level]);
 const settings = levelSettings(level);
 const tolerance = getTolerance(level);
 const perfectZone = getPerfectZone(level);
+
+const activeDot = dotRun[activeDotIndex] ?? baseDots[0];
 
 useEffect(() => {
 const saved = localStorage.getItem("centerStrikeLevel");
@@ -72,25 +91,26 @@ if (saved) setLevel(Math.min(Number(saved), TOTAL_LEVELS));
 }, []);
 
 useEffect(() => {
-if (state !== "playing") return;
+setDotRun(shuffleDots(baseDots));
+setActiveDotIndex(0);
+}, [baseDots]);
+
+useEffect(() => {
+if (state !== "playing" || !activeDot) return;
 
 startTimeRef.current = performance.now();
 
 function animate(now: number) {
 const width = areaRef.current?.clientWidth ?? 800;
-const nextPositions: Record<number, number> = {};
-
-dots.forEach((dot) => {
-const elapsed = Math.max(0, now - startTimeRef.current - dot.delay);
 const slowFactor = slowMo ? 0.35 : 1;
-const cycle = width + dot.size * 2;
+const cycle = width + activeDot.size * 2;
+
+const elapsed = Math.max(0, now - startTimeRef.current);
 const x =
-((elapsed * dot.speed * 0.06 * slowFactor) % cycle) - dot.size;
+((elapsed * activeDot.speed * 0.06 * slowFactor) % cycle) -
+activeDot.size;
 
-nextPositions[dot.id] = x;
-});
-
-setPositions(nextPositions);
+setPosition(x);
 frameRef.current = requestAnimationFrame(animate);
 }
 
@@ -99,7 +119,23 @@ frameRef.current = requestAnimationFrame(animate);
 return () => {
 if (frameRef.current) cancelAnimationFrame(frameRef.current);
 };
-}, [state, dots, slowMo]);
+}, [state, activeDot, slowMo]);
+
+function randomizeNextBall() {
+setActiveDotIndex((current) => {
+const next = current + 1;
+
+if (next >= dotRun.length) {
+setDotRun(shuffleDots(baseDots));
+return 0;
+}
+
+return next;
+});
+
+setPosition(-60);
+startTimeRef.current = performance.now();
+}
 
 function startGame() {
 setScore(0);
@@ -108,7 +144,10 @@ setBestCombo(0);
 setMisses(0);
 setLastHit(null);
 setSlowMo(false);
-setMessage("Tap anywhere when a dot crosses the center line");
+setPosition(-60);
+setDotRun(shuffleDots(baseDots));
+setActiveDotIndex(0);
+setMessage("Tap anywhere when the ball crosses the center line");
 setState("playing");
 }
 
@@ -119,6 +158,9 @@ setBestCombo(0);
 setMisses(0);
 setLastHit(null);
 setSlowMo(false);
+setPosition(-60);
+setDotRun(shuffleDots(baseDots));
+setActiveDotIndex(0);
 setMessage("Tap Start");
 setState("ready");
 }
@@ -127,7 +169,16 @@ function nextLevel() {
 const next = Math.min(level + 1, TOTAL_LEVELS);
 setLevel(next);
 localStorage.setItem("centerStrikeLevel", String(next));
-resetLevel();
+setScore(0);
+setCombo(0);
+setBestCombo(0);
+setMisses(0);
+setLastHit(null);
+setSlowMo(false);
+setPosition(-60);
+setActiveDotIndex(0);
+setMessage("Tap Start");
+setState("ready");
 }
 
 function restartGame() {
@@ -137,35 +188,23 @@ resetLevel();
 }
 
 function handlePlayAreaTap() {
-if (state !== "playing") return;
+if (state !== "playing" || !activeDot) return;
 
 const areaWidth = areaRef.current?.clientWidth ?? 800;
 const center = areaWidth / 2;
-
-let closestDistance = Infinity;
-let closestDotCenter = 0;
-
-dots.forEach((dot) => {
-const dotCenter = (positions[dot.id] ?? -999) + dot.size / 2;
+const dotCenter = position + activeDot.size / 2;
 const distance = Math.abs(dotCenter - center);
-
-if (distance < closestDistance) {
-closestDistance = distance;
-closestDotCenter = dotCenter;
-}
-});
-
-const isEarly = closestDotCenter < center;
+const isEarly = dotCenter < center;
 
 let quality: HitQuality = "Miss";
 let points = 0;
 
-if (closestDistance <= perfectZone) {
+if (distance <= perfectZone) {
 quality = "Perfect";
 points = 100;
 setSlowMo(true);
 setTimeout(() => setSlowMo(false), 260);
-} else if (closestDistance <= tolerance) {
+} else if (distance <= tolerance) {
 quality = isEarly ? "Early" : "Late";
 points = 50;
 }
@@ -203,7 +242,10 @@ if (navigator.vibrate) navigator.vibrate(quality === "Perfect" ? 35 : 20);
 if (newScore >= settings.targetScore) {
 setState("complete");
 setMessage("Level complete!");
+return;
 }
+
+randomizeNextBall();
 }
 
 return (
@@ -217,7 +259,8 @@ return (
 <div>
 <h1 style={styles.title}>Center Strike</h1>
 <p style={styles.subtitle}>
-Tap anywhere when a moving dot crosses the center line.
+Hit each ball as it crosses the center. After each hit, the next
+random ball appears.
 </p>
 </div>
 
@@ -226,27 +269,30 @@ Level {level}/{TOTAL_LEVELS}
 </div>
 </div>
 
-<div ref={areaRef} style={styles.playArea} onPointerDown={handlePlayAreaTap}>
+<div
+ref={areaRef}
+style={styles.playArea}
+onPointerDown={handlePlayAreaTap}
+>
 <div style={{ ...styles.hitZone, width: tolerance * 2 }} />
 <div style={{ ...styles.perfectZone, width: perfectZone * 2 }} />
 <div style={styles.centerLine} />
 
-{dots.map((dot) => (
+{state === "playing" && activeDot && (
 <div
-key={dot.id}
 style={{
 ...styles.dot,
-top: `${dot.y}%`,
-width: dot.size,
-height: dot.size,
-background: dot.color,
-boxShadow: `0 0 22px ${dot.color}`,
-transform: `translateX(${positions[dot.id] ?? -60}px) ${
-slowMo ? "scale(1.15)" : "scale(1)"
+top: `${activeDot.y}%`,
+width: activeDot.size,
+height: activeDot.size,
+background: activeDot.color,
+boxShadow: `0 0 24px ${activeDot.color}`,
+transform: `translateX(${position}px) ${
+slowMo ? "scale(1.2)" : "scale(1)"
 }`,
 }}
 />
-))}
+)}
 </div>
 
 <div style={styles.status}>
@@ -276,8 +322,8 @@ slowMo ? "scale(1.15)" : "scale(1)"
 <span>Misses</span>
 </div>
 <div style={styles.statBox}>
-<strong>{dots.length}</strong>
-<span>Dots</span>
+<strong>{dotRun.length}</strong>
+<span>Balls</span>
 </div>
 </div>
 
@@ -326,6 +372,7 @@ display: "flex",
 justifyContent: "center",
 alignItems: "center",
 },
+
 card: {
 width: "min(920px, 100%)",
 padding: "clamp(18px, 4vw, 34px)",
@@ -335,11 +382,13 @@ border: "1px solid rgba(148,163,184,0.25)",
 boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
 backdropFilter: "blur(16px)",
 },
+
 back: {
 color: "#67e8f9",
 textDecoration: "none",
 fontWeight: 800,
 },
+
 header: {
 marginTop: 18,
 display: "flex",
@@ -348,6 +397,7 @@ gap: 18,
 alignItems: "flex-start",
 flexWrap: "wrap",
 },
+
 title: {
 fontSize: "clamp(42px, 8vw, 76px)",
 margin: 0,
@@ -355,11 +405,13 @@ fontWeight: 950,
 letterSpacing: "-3px",
 textShadow: "0 0 28px rgba(34,211,238,0.35)",
 },
+
 subtitle: {
 color: "#cbd5e1",
 fontSize: "clamp(15px, 3vw, 19px)",
 marginTop: 8,
 },
+
 levelBadge: {
 padding: "12px 18px",
 borderRadius: 999,
@@ -368,6 +420,7 @@ border: "1px solid rgba(34,211,238,0.35)",
 color: "#a5f3fc",
 fontWeight: 900,
 },
+
 playArea: {
 marginTop: 28,
 height: "clamp(300px, 55vh, 500px)",
@@ -382,6 +435,7 @@ boxShadow:
 touchAction: "manipulation",
 cursor: "pointer",
 },
+
 hitZone: {
 position: "absolute",
 top: 0,
@@ -391,6 +445,7 @@ transform: "translateX(-50%)",
 background: "rgba(34,211,238,0.08)",
 zIndex: 0,
 },
+
 perfectZone: {
 position: "absolute",
 top: 0,
@@ -400,6 +455,7 @@ transform: "translateX(-50%)",
 background: "rgba(16,185,129,0.16)",
 zIndex: 0,
 },
+
 centerLine: {
 position: "absolute",
 top: 0,
@@ -411,6 +467,7 @@ background: "rgba(255,255,255,0.95)",
 boxShadow: "0 0 28px rgba(255,255,255,0.8)",
 zIndex: 1,
 },
+
 dot: {
 position: "absolute",
 left: 0,
@@ -420,6 +477,7 @@ zIndex: 2,
 pointerEvents: "none",
 transition: "transform 90ms ease, box-shadow 120ms ease",
 },
+
 status: {
 marginTop: 18,
 textAlign: "center",
@@ -428,6 +486,7 @@ color: "#e0f2fe",
 fontSize: 18,
 minHeight: 28,
 },
+
 hitLabel: {
 display: "inline-block",
 marginRight: 10,
@@ -436,12 +495,14 @@ borderRadius: 999,
 background: "rgba(34,211,238,0.18)",
 color: "#a5f3fc",
 },
+
 stats: {
 marginTop: 18,
 display: "grid",
 gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
 gap: 12,
 },
+
 statBox: {
 borderRadius: 18,
 padding: 14,
@@ -452,6 +513,7 @@ flexDirection: "column",
 textAlign: "center",
 gap: 4,
 },
+
 primary: {
 width: "100%",
 marginTop: 18,
@@ -465,6 +527,7 @@ fontSize: 17,
 cursor: "pointer",
 boxShadow: "0 0 30px rgba(34,211,238,0.45)",
 },
+
 secondary: {
 width: "100%",
 marginTop: 18,
@@ -476,6 +539,7 @@ color: "white",
 fontWeight: 900,
 cursor: "pointer",
 },
+
 danger: {
 width: "100%",
 marginTop: 10,
