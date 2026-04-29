@@ -41,6 +41,15 @@ title="Center Strike"
 description="Hit moving balls as they cross the center line."
 tag="Precision"
 />
+
+<GameCard
+href="/dice-shift"
+icon={<DiceIcon />}
+title="Dice Shift"
+description="Lock moving dice at the right moment to hit the target."
+tag="Skill"
+/>
+
 </div>
 </section>
 </main>
@@ -244,6 +253,20 @@ stroke="#a5f3fc"
 strokeWidth="2"
 strokeLinecap="round"
 />
+</svg>
+);
+}
+
+function DiceIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect x="5" y="5" width="44" height="44" rx="14" fill="rgba(15,23,42,0.95)" stroke="#fb923c" strokeWidth="2.5" />
+<rect x="15" y="15" width="24" height="24" rx="6" fill="#fb923c" />
+<circle cx="21" cy="21" r="2.5" fill="#431407" />
+<circle cx="33" cy="21" r="2.5" fill="#431407" />
+<circle cx="27" cy="27" r="2.5" fill="#431407" />
+<circle cx="21" cy="33" r="2.5" fill="#431407" />
+<circle cx="33" cy="33" r="2.5" fill="#431407" />
 </svg>
 );
 }
