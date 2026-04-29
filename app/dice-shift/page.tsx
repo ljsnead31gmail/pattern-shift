@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type GameState = "ready" | "playing" | "complete" | "failed";
+type DieType = "normal" | "bonus" | "danger" | "reverse";
+
 type Die = {
 id: number;
 x: number;
@@ -10,6 +12,8 @@ y: number;
 value: number;
 locked: boolean;
 speed: number;
+type: DieType;
+direction: 1 | -1;
 };
 
 const TOTAL_LEVELS = 45;
@@ -18,7 +22,7 @@ function levelSettings(level: number) {
 return {
 diceCount: Math.min(2 + Math.floor((level - 1) / 6), 8),
 target: 7 + level,
-speed: 1.2 + level * 0.08,
+speed: 1.25 + level * 0.09,
 lockGoal: Math.min(2 + Math.floor(level / 5), 6),
 };
 }
@@ -26,14 +30,50 @@ lockGoal: Math.min(2 + Math.floor(level / 5), 6),
 function makeDice(level: number): Die[] {
 const settings = levelSettings(level);
 
-return Array.from({ length: settings.diceCount }, (_, i) => ({
+return Array.from({ length: settings.diceCount }, (_, i) => {
+const type: DieType =
+level >= 18 && i % 5 === 0
+? "reverse"
+: level >= 12 && i % 4 === 0
+? "bonus"
+: level >= 20 && i % 6 === 0
+? "danger"
+: "normal";
+
+return {
 id: i,
-x: -80 - i * 110,
-y: 18 + ((i * 71 + level * 13) % 65),
+x: type === "reverse" ? 900 + i * 100 : -90 - i * 120,
+y: 15 + ((i * 71 + level * 13) % 68),
 value: ((i + level) % 6) + 1,
 locked: false,
-speed: settings.speed + i * 0.08,
-}));
+speed: settings.speed + i * 0.1,
+type,
+direction: type === "reverse" ? -1 : 1,
+};
+});
+}
+
+function playTone(type: "lock" | "perfect" | "bad") {
+try {
+const AudioContextClass =
+window.AudioContext || (window as any).webkitAudioContext;
+const audio = new AudioContextClass();
+const oscillator = audio.createOscillator();
+const gain = audio.createGain();
+
+oscillator.connect(gain);
+gain.connect(audio.destination);
+
+oscillator.type = "sine";
+oscillator.frequency.value =
+type === "perfect" ? 720 : type === "bad" ? 140 : 320;
+
+gain.gain.setValueAtTime(0.08, audio.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.18);
+
+oscillator.start();
+oscillator.stop(audio.currentTime + 0.18);
+} catch {}
 }
 
 export default function Page() {
@@ -43,12 +83,16 @@ const [dice, setDice] = useState<Die[]>(makeDice(1));
 const [score, setScore] = useState(0);
 const [locks, setLocks] = useState(0);
 const [misses, setMisses] = useState(0);
+const [combo, setCombo] = useState(0);
+const [bestCombo, setBestCombo] = useState(0);
 const [message, setMessage] = useState("Tap Start");
+const [lastLockedId, setLastLockedId] = useState<number | null>(null);
 
 const areaRef = useRef<HTMLDivElement | null>(null);
 const frameRef = useRef<number | null>(null);
 
 const settings = levelSettings(level);
+
 const lockedTotal = useMemo(
 () => dice.filter((d) => d.locked).reduce((sum, d) => sum + d.value, 0),
 [dice]
@@ -67,17 +111,20 @@ useEffect(() => {
 if (state !== "playing") return;
 
 function animate() {
-const width = areaRef.current?.clientWidth ?? 800;
+const width = areaRef.current?.clientWidth ?? 900;
 
 setDice((current) =>
 current.map((die) => {
 if (die.locked) return die;
 
-let nextX = die.x + die.speed;
-if (nextX > width + 80) nextX = -80;
+let nextX = die.x + die.speed * die.direction;
 
+if (die.direction === 1 && nextX > width + 90) nextX = -90;
+if (die.direction === -1 && nextX < -90) nextX = width + 90;
+
+const flipSpeed = Math.max(90, 230 - level * 3 + die.id * 9);
 const nextValue =
-Math.floor((performance.now() / (220 - level * 2 + die.id * 9)) % 6) + 1;
+Math.floor((performance.now() / flipSpeed) % 6) + 1;
 
 return {
 ...die,
@@ -102,7 +149,10 @@ setDice(makeDice(level));
 setScore(0);
 setLocks(0);
 setMisses(0);
-setMessage(`Lock dice to hit target total ${settings.target}`);
+setCombo(0);
+setBestCombo(0);
+setLastLockedId(null);
+setMessage(`Lock dice to hit target ${settings.target}`);
 setState("playing");
 }
 
@@ -111,6 +161,9 @@ setDice(makeDice(level));
 setScore(0);
 setLocks(0);
 setMisses(0);
+setCombo(0);
+setBestCombo(0);
+setLastLockedId(null);
 setMessage("Tap Start");
 setState("ready");
 }
@@ -122,6 +175,8 @@ setDice(makeDice(1));
 setScore(0);
 setLocks(0);
 setMisses(0);
+setCombo(0);
+setBestCombo(0);
 setMessage("Tap Start");
 setState("ready");
 }
@@ -134,6 +189,9 @@ setDice(makeDice(next));
 setScore(0);
 setLocks(0);
 setMisses(0);
+setCombo(0);
+setBestCombo(0);
+setLastLockedId(null);
 setMessage("Tap Start");
 setState("ready");
 }
@@ -153,27 +211,51 @@ const nextTotal = nextDice
 .reduce((sum, d) => sum + d.value, 0);
 
 const distance = Math.abs(settings.target - nextTotal);
-const earned = Math.max(0, 120 - distance * 25);
+const center = (areaRef.current?.clientWidth ?? 900) / 2;
+const centerDistance = Math.abs(die.x + 32 - center);
+
+const timingBonus =
+centerDistance < 45 ? 180 : centerDistance < 100 ? 90 : 25;
+
+const newCombo = combo + 1;
+const comboMultiplier = 1 + Math.floor(newCombo / 3) * 0.25;
+
+let basePoints = Math.max(0, 140 - distance * 24) + timingBonus;
+
+if (die.type === "bonus") basePoints *= 2;
+if (die.type === "danger" && nextTotal > settings.target) basePoints = 0;
+
+const earned = Math.round(basePoints * comboMultiplier);
 const nextScore = score + earned;
 const nextLocks = locks + 1;
 
 setDice(nextDice);
 setScore(nextScore);
 setLocks(nextLocks);
+setCombo(newCombo);
+setBestCombo((b) => Math.max(b, newCombo));
+setLastLockedId(id);
 
-if (navigator.vibrate) navigator.vibrate(30);
+if (navigator.vibrate) navigator.vibrate(35);
+playTone(distance === 0 ? "perfect" : "lock");
 
 if (nextTotal === settings.target) {
-setScore(nextScore + 250);
+const bonus = Math.round(300 * comboMultiplier);
+setScore(nextScore + bonus);
 setState("complete");
-setMessage("Perfect target hit!");
+setMessage(`Perfect target! Bonus +${bonus}`);
+playTone("perfect");
 return;
 }
 
 if (nextTotal > settings.target) {
 const nextMisses = misses + 1;
 setMisses(nextMisses);
+setCombo(0);
 setMessage("Bust! Total went over target.");
+playTone("bad");
+
+if (navigator.vibrate) navigator.vibrate(90);
 
 if (nextMisses >= 3) {
 setState("failed");
@@ -186,11 +268,12 @@ return;
 if (nextLocks >= settings.lockGoal) {
 if (distance <= 2) {
 setState("complete");
-setMessage("Close enough — level complete!");
+setMessage(`Close enough! Score +${earned}`);
 } else {
 const nextMisses = misses + 1;
 setMisses(nextMisses);
-setMessage("Not close enough. Try again.");
+setCombo(0);
+setMessage("Not close enough. Dice reset.");
 
 if (nextMisses >= 3) {
 setState("failed");
@@ -199,47 +282,61 @@ setMessage("Level failed — try again");
 setTimeout(() => {
 setDice(makeDice(level));
 setLocks(0);
+setLastLockedId(null);
 }, 700);
 }
 }
 } else {
-setMessage(`Total ${nextTotal}. Keep locking dice.`);
+setMessage(
+`Locked ${die.value}. Total ${nextTotal}. +${earned} points x${comboMultiplier.toFixed(
+2
+)}`
+);
 }
 }
 
 return (
 <main style={styles.page}>
 <section style={styles.card}>
-<a href="/" style={styles.back}>← Arcade</a>
+<a href="/" style={styles.back}>
+← Arcade
+</a>
 
 <div style={styles.header}>
 <div>
 <h1 style={styles.title}>Dice Shift</h1>
 <p style={styles.subtitle}>
-Moving dice change value as they travel. Tap to lock the right numbers and hit the target.
+Time your locks, build combos, and hit the target before you bust.
 </p>
 </div>
 
-<div style={styles.levelBadge}>Level {level}/{TOTAL_LEVELS}</div>
+<div style={styles.levelBadge}>
+Level {level}/{TOTAL_LEVELS}
+</div>
 </div>
 
 <div style={styles.targetPanel}>
-<div>
+<div style={styles.targetBox}>
 <span style={styles.label}>Target</span>
 <strong>{settings.target}</strong>
 </div>
-<div>
+<div style={styles.targetBox}>
 <span style={styles.label}>Locked Total</span>
 <strong>{lockedTotal}</strong>
 </div>
-<div>
+<div style={styles.targetBox}>
 <span style={styles.label}>Score</span>
 <strong>{score}</strong>
+</div>
+<div style={styles.targetBox}>
+<span style={styles.label}>Combo</span>
+<strong>{combo}</strong>
 </div>
 </div>
 
 <div ref={areaRef} style={styles.playArea}>
 <div style={styles.centerGlow} />
+<div style={styles.centerLine} />
 
 {state === "playing" &&
 dice.map((die) => (
@@ -250,8 +347,19 @@ style={{
 ...styles.die,
 left: die.x,
 top: `${die.y}%`,
-opacity: die.locked ? 0.38 : 1,
-transform: die.locked ? "scale(0.9)" : "scale(1)",
+opacity: die.locked ? 0.35 : 1,
+transform:
+die.locked || lastLockedId === die.id
+? "scale(1.18) rotate(8deg)"
+: `scale(1) rotate(${die.x % 360}deg)`,
+background:
+die.type === "bonus"
+? "linear-gradient(145deg, #bbf7d0, #22c55e)"
+: die.type === "danger"
+? "linear-gradient(145deg, #fecaca, #ef4444)"
+: die.type === "reverse"
+? "linear-gradient(145deg, #ddd6fe, #8b5cf6)"
+: "linear-gradient(145deg, #fed7aa, #fb923c)",
 }}
 >
 {die.value}
@@ -267,29 +375,43 @@ transform: die.locked ? "scale(0.9)" : "scale(1)",
 <span>Dice</span>
 </div>
 <div style={styles.statBox}>
-<strong>{locks}/{settings.lockGoal}</strong>
+<strong>
+{locks}/{settings.lockGoal}
+</strong>
 <span>Locks</span>
 </div>
 <div style={styles.statBox}>
 <strong>{misses}/3</strong>
 <span>Busts</span>
 </div>
+<div style={styles.statBox}>
+<strong>{bestCombo}</strong>
+<span>Best Combo</span>
+</div>
 </div>
 
 {state === "ready" && (
-<button onClick={startGame} style={styles.primary}>Start Level</button>
+<button onClick={startGame} style={styles.primary}>
+Start Level
+</button>
 )}
 
 {state === "playing" && (
-<button onClick={resetLevel} style={styles.secondary}>Reset Level</button>
+<button onClick={resetLevel} style={styles.secondary}>
+Reset Level
+</button>
 )}
 
 {state === "complete" && (
-<button onClick={nextLevel} style={styles.primary}>Next Level</button>
+<button onClick={nextLevel} style={styles.primary}>
+Next Level
+</button>
 )}
 
 {state === "failed" && (
-<button onClick={resetLevel} style={styles.primary}>Try Again</button>
+<button onClick={resetLevel} style={styles.primary}>
+Try Again
+</button>
 )}
 
 <button onClick={restartGame} style={styles.danger}>
@@ -315,10 +437,10 @@ alignItems: "center",
 },
 
 card: {
-width: "min(960px, 100%)",
+width: "min(980px, 100%)",
 padding: "clamp(18px, 4vw, 34px)",
 borderRadius: 32,
-background: "rgba(15,23,42,0.82)",
+background: "rgba(15,23,42,0.84)",
 border: "1px solid rgba(251,146,60,0.25)",
 boxShadow: "0 30px 90px rgba(0,0,0,0.55)",
 backdropFilter: "blur(16px)",
@@ -365,9 +487,16 @@ fontWeight: 900,
 
 targetPanel: {
 display: "grid",
-gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
 gap: 12,
 marginTop: 24,
+},
+
+targetBox: {
+padding: 14,
+borderRadius: 18,
+background: "rgba(30,41,59,0.86)",
+border: "1px solid rgba(251,146,60,0.18)",
 },
 
 label: {
@@ -398,19 +527,28 @@ background: "rgba(251,146,60,0.08)",
 boxShadow: "0 0 60px rgba(251,146,60,0.18)",
 },
 
+centerLine: {
+position: "absolute",
+top: 0,
+bottom: 0,
+left: "50%",
+width: 4,
+background: "rgba(251,146,60,0.4)",
+boxShadow: "0 0 28px rgba(251,146,60,0.5)",
+},
+
 die: {
 position: "absolute",
 width: 64,
 height: 64,
 borderRadius: 18,
 border: "2px solid rgba(255,255,255,0.65)",
-background: "linear-gradient(145deg, #fed7aa, #fb923c)",
 color: "#431407",
 fontSize: 32,
 fontWeight: 950,
 cursor: "pointer",
 boxShadow: "0 0 30px rgba(251,146,60,0.55)",
-transition: "transform 120ms ease, opacity 120ms ease",
+transition: "transform 160ms ease, opacity 160ms ease",
 WebkitTapHighlightColor: "transparent",
 },
 
