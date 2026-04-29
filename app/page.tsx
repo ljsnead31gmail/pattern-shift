@@ -50,6 +50,14 @@ description="Lock moving dice at the right moment to hit the target."
 tag="Skill"
 />
 
+<GameCard
+href="/echo-tap"
+icon={<EchoIcon />}
+title="Echo Tap"
+description="Memorize the glowing rhythm and repeat the sequence."
+tag="Memory"
+/>
+
 </div>
 </section>
 </main>
@@ -267,6 +275,18 @@ return (
 <circle cx="27" cy="27" r="2.5" fill="#431407" />
 <circle cx="21" cy="33" r="2.5" fill="#431407" />
 <circle cx="33" cy="33" r="2.5" fill="#431407" />
+</svg>
+);
+}
+
+function EchoIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect x="5" y="5" width="44" height="44" rx="14" fill="rgba(15,23,42,0.95)" stroke="#a78bfa" strokeWidth="2.5" />
+<circle cx="27" cy="27" r="5" fill="#ddd6fe" />
+<path d="M18 27a9 9 0 0 1 18 0" fill="none" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" />
+<path d="M13 27a14 14 0 0 1 28 0" fill="none" stroke="#c4b5fd" strokeWidth="2.5" strokeLinecap="round" />
+<path d="M9 27a18 18 0 0 1 36 0" fill="none" stroke="#ede9fe" strokeWidth="2" strokeLinecap="round" />
 </svg>
 );
 }
