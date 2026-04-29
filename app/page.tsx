@@ -14,7 +14,7 @@ return (
 <h1 style={styles.title}>Choose Your Game</h1>
 
 <p style={styles.subtitle}>
-Fast, polished browser games built for desktop and mobile.
+Fun, browser games built for desktop and mobile.
 </p>
 
 <div style={styles.grid}>
@@ -103,7 +103,7 @@ height="44"
 rx="14"
 fill="rgba(15,23,42,0.95)"
 stroke="#22d3ee"
-strokeWidth="2.5"
+strokeWidth="2.5"xf
 />
 
 <path
