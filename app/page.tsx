@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 export default function Page() {
 return (
 <main style={styles.page}>
@@ -7,8 +9,10 @@ return (
 <div style={styles.backgroundGlowTwo} />
 
 <section style={styles.hero}>
-<div style={styles.badge}>🎮 Mini Arcade</div>
+<div style={styles.badge}>Mini Arcade</div>
+
 <h1 style={styles.title}>Choose Your Game</h1>
+
 <p style={styles.subtitle}>
 Fast, polished browser games built for desktop and mobile.
 </p>
@@ -16,7 +20,7 @@ Fast, polished browser games built for desktop and mobile.
 <div style={styles.grid}>
 <GameCard
 href="/pattern-shift"
-icon="🧩"
+icon={<PuzzleIcon />}
 title="Pattern Shift"
 description="Rotate glowing tiles and solve the hidden path."
 tag="Puzzle"
@@ -24,7 +28,7 @@ tag="Puzzle"
 
 <GameCard
 href="/reaction"
-icon="⚡"
+icon={<LightningIcon />}
 title="Reaction Test"
 description="Tap when the screen turns green. Beat your best time."
 tag="Speed"
@@ -32,12 +36,11 @@ tag="Speed"
 
 <GameCard
 href="/reaction-upgrade"
-icon="🎯"
+icon={<TargetIcon />}
 title="Center Strike"
-description="Tap moving dots as they cross the center line."
+description="Hit moving balls as they cross the center line."
 tag="Precision"
 />
-
 </div>
 </section>
 </main>
@@ -52,7 +55,7 @@ description,
 tag,
 }: {
 href: string;
-icon: string;
+icon: React.ReactNode;
 title: string;
 description: string;
 tag: string;
@@ -65,19 +68,16 @@ onMouseEnter={(e) => {
 e.currentTarget.style.transform = "translateY(-8px) scale(1.03)";
 e.currentTarget.style.boxShadow =
 "0 35px 90px rgba(0,0,0,0.55), 0 0 45px rgba(34,211,238,0.28)";
-e.currentTarget.style.border =
-"1px solid rgba(34,211,238,0.55)";
+e.currentTarget.style.border = "1px solid rgba(34,211,238,0.55)";
 }}
 onMouseLeave={(e) => {
 e.currentTarget.style.transform = "translateY(0) scale(1)";
-e.currentTarget.style.boxShadow =
-"0 25px 70px rgba(0,0,0,0.42)";
-e.currentTarget.style.border =
-"1px solid rgba(148,163,184,0.25)";
+e.currentTarget.style.boxShadow = "0 25px 70px rgba(0,0,0,0.42)";
+e.currentTarget.style.border = "1px solid rgba(148,163,184,0.25)";
 }}
 >
 <div style={styles.cardTop}>
-<div style={styles.icon}>{icon}</div>
+<div style={styles.iconBox}>{icon}</div>
 <span style={styles.tag}>{tag}</span>
 </div>
 
@@ -89,6 +89,132 @@ e.currentTarget.style.border =
 <span style={styles.arrow}>→</span>
 </div>
 </a>
+);
+}
+
+function PuzzleIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect
+x="5"
+y="5"
+width="44"
+height="44"
+rx="14"
+fill="rgba(15,23,42,0.95)"
+stroke="#22d3ee"
+strokeWidth="2.5"
+/>
+<path
+d="M20 17h9v7h7v9h-7v7h-9v-7h-7v-9h7z"
+fill="#22d3ee"
+/>
+<path
+d="M20 17h9v7h7"
+fill="none"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+</svg>
+);
+}
+
+function LightningIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect
+x="5"
+y="5"
+width="44"
+height="44"
+rx="14"
+fill="rgba(15,23,42,0.95)"
+stroke="#22d3ee"
+strokeWidth="2.5"
+/>
+<path
+d="M31 8L16 31h11l-4 15 16-27H28z"
+fill="#22d3ee"
+/>
+<path
+d="M31 8L16 31h11"
+fill="none"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+</svg>
+);
+}
+
+function TargetIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect
+x="5"
+y="5"
+width="44"
+height="44"
+rx="14"
+fill="rgba(15,23,42,0.95)"
+stroke="#22d3ee"
+strokeWidth="2.5"
+/>
+<circle
+cx="27"
+cy="27"
+r="14"
+fill="none"
+stroke="#22d3ee"
+strokeWidth="3"
+/>
+<circle
+cx="27"
+cy="27"
+r="7"
+fill="none"
+stroke="#67e8f9"
+strokeWidth="3"
+/>
+<circle cx="27" cy="27" r="3.5" fill="white" />
+<line
+x1="27"
+y1="10"
+x2="27"
+y2="17"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+<line
+x1="27"
+y1="37"
+x2="27"
+y2="44"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+<line
+x1="10"
+y1="27"
+x2="17"
+y2="27"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+<line
+x1="37"
+y1="27"
+x2="44"
+y2="27"
+stroke="#a5f3fc"
+strokeWidth="2"
+strokeLinecap="round"
+/>
+</svg>
 );
 }
 
@@ -131,7 +257,7 @@ right: -100,
 },
 
 hero: {
-width: "min(900px, 100%)",
+width: "min(1080px, 100%)",
 position: "relative",
 zIndex: 2,
 textAlign: "center",
@@ -197,16 +323,19 @@ gap: 12,
 marginBottom: 22,
 },
 
-icon: {
-width: 64,
-height: 64,
-borderRadius: 22,
+iconBox: {
+width: 72,
+height: 72,
+borderRadius: 24,
 display: "grid",
 placeItems: "center",
-fontSize: 36,
-background: "rgba(34,211,238,0.12)",
-border: "1px solid rgba(34,211,238,0.28)",
-boxShadow: "0 0 30px rgba(34,211,238,0.22)",
+background: "rgba(34,211,238,0.09)",
+border: "1px solid rgba(34,211,238,0.22)",
+boxShadow: "0 0 30px rgba(34,211,238,0.18)",
+},
+
+svgIcon: {
+filter: "drop-shadow(0 0 10px rgba(34,211,238,0.65))",
 },
 
 tag: {
