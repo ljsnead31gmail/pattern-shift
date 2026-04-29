@@ -29,6 +29,15 @@ title="Reaction Test"
 description="Tap when the screen turns green. Beat your best time."
 tag="Speed"
 />
+
+<GameCard
+href="/reaction-upgrade"
+icon="🎯"
+title="Center Strike"
+description="Tap moving dots as they cross the center line."
+tag="Precision"
+/>
+
 </div>
 </section>
 </main>
