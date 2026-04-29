@@ -66,6 +66,14 @@ description="Repeat the rhythm, ignore fake flashes, and build combos."
 tag="Rhythm"
 />
 
+<GameCard
+href="/dice-duel"
+icon={<DiceDuelIcon />}
+title="Dice Duel"
+description="Lock, reroll, and attack in a dice battle against AI."
+tag="Duel"
+/>
+
 </div>
 </section>
 </main>
@@ -308,6 +316,20 @@ return (
 <path d="M16 34c5 5 17 5 22 0" fill="none" stroke="#c4b5fd" strokeWidth="3" strokeLinecap="round" />
 <path d="M12 27h6" stroke="#ede9fe" strokeWidth="2.5" strokeLinecap="round" />
 <path d="M36 27h6" stroke="#ede9fe" strokeWidth="2.5" strokeLinecap="round" />
+</svg>
+);
+}
+
+function DiceDuelIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect x="5" y="5" width="44" height="44" rx="14" fill="rgba(15,23,42,0.95)" stroke="#fb923c" strokeWidth="2.5" />
+<rect x="13" y="18" width="18" height="18" rx="5" fill="#fb923c" />
+<rect x="24" y="14" width="18" height="18" rx="5" fill="#fed7aa" opacity="0.95" />
+<circle cx="19" cy="24" r="2" fill="#431407" />
+<circle cx="25" cy="30" r="2" fill="#431407" />
+<circle cx="30" cy="20" r="2" fill="#431407" />
+<circle cx="36" cy="26" r="2" fill="#431407" />
 </svg>
 );
 }
