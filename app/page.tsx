@@ -105,16 +105,46 @@ fill="rgba(15,23,42,0.95)"
 stroke="#22d3ee"
 strokeWidth="2.5"
 />
+
 <path
-d="M20 17h9v7h7v9h-7v7h-9v-7h-7v-9h7z"
+d="
+M18 17
+H25
+C25 13.8 29 13.8 29 17
+H36
+V24
+C39.2 24 39.2 30 36 30
+V37
+H29
+C29 40.2 25 40.2 25 37
+H18
+V30
+C14.8 30 14.8 24 18 24
+Z
+"
 fill="#22d3ee"
 />
+
 <path
-d="M20 17h9v7h7"
+d="
+M18 17
+H25
+C25 13.8 29 13.8 29 17
+H36
+V24
+C39.2 24 39.2 30 36 30
+V37
+H29
+C29 40.2 25 40.2 25 37
+H18
+V30
+C14.8 30 14.8 24 18 24
+Z
+"
 fill="none"
 stroke="#a5f3fc"
 strokeWidth="2"
-strokeLinecap="round"
+strokeLinejoin="round"
 />
 </svg>
 );
