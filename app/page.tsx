@@ -58,6 +58,14 @@ description="Memorize the glowing rhythm and repeat the sequence."
 tag="Memory"
 />
 
+<GameCard
+href="/echo-tap-pro"
+icon={<EchoProIcon />}
+title="Echo Tap Pro"
+description="Repeat the rhythm, ignore fake flashes, and build combos."
+tag="Rhythm"
+/>
+
 </div>
 </section>
 </main>
@@ -287,6 +295,19 @@ return (
 <path d="M18 27a9 9 0 0 1 18 0" fill="none" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" />
 <path d="M13 27a14 14 0 0 1 28 0" fill="none" stroke="#c4b5fd" strokeWidth="2.5" strokeLinecap="round" />
 <path d="M9 27a18 18 0 0 1 36 0" fill="none" stroke="#ede9fe" strokeWidth="2" strokeLinecap="round" />
+</svg>
+);
+}
+
+function EchoProIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect x="5" y="5" width="44" height="44" rx="14" fill="rgba(15,23,42,0.95)" stroke="#a78bfa" strokeWidth="2.5" />
+<circle cx="27" cy="27" r="5" fill="#ddd6fe" />
+<path d="M16 20c5-5 17-5 22 0" fill="none" stroke="#a78bfa" strokeWidth="3" strokeLinecap="round" />
+<path d="M16 34c5 5 17 5 22 0" fill="none" stroke="#c4b5fd" strokeWidth="3" strokeLinecap="round" />
+<path d="M12 27h6" stroke="#ede9fe" strokeWidth="2.5" strokeLinecap="round" />
+<path d="M36 27h6" stroke="#ede9fe" strokeWidth="2.5" strokeLinecap="round" />
 </svg>
 );
 }
