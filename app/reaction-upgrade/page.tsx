@@ -14,7 +14,7 @@ color: string;
 type GameState = "ready" | "playing" | "complete" | "failed";
 
 const TOTAL_LEVELS = 45;
-const CENTER_TOLERANCE = 34;
+const CENTER_TOLERANCE = 70;
 
 function levelSettings(level: number) {
 const dotCount = Math.min(1 + Math.floor((level - 1) / 5), 10);
