@@ -74,6 +74,14 @@ description="Lock, reroll, and attack in a dice battle against AI."
 tag="Duel"
 />
 
+<GameCard
+href="/word-vault"
+icon={<WordVaultIcon />}
+title="Word Vault"
+description="Crack the hidden word with clues that cost points."
+tag="Word"
+/>
+
 </div>
 </section>
 </main>
@@ -330,6 +338,17 @@ return (
 <circle cx="25" cy="30" r="2" fill="#431407" />
 <circle cx="30" cy="20" r="2" fill="#431407" />
 <circle cx="36" cy="26" r="2" fill="#431407" />
+</svg>
+);
+}
+
+function WordVaultIcon() {
+return (
+<svg width="54" height="54" viewBox="0 0 54 54" style={styles.svgIcon}>
+<rect x="5" y="5" width="44" height="44" rx="14" fill="rgba(15,23,42,0.95)" stroke="#14b8a6" strokeWidth="2.5" />
+<rect x="15" y="23" width="24" height="17" rx="4" fill="#14b8a6" />
+<path d="M19 23v-5a8 8 0 0 1 16 0v5" fill="none" stroke="#99f6e4" strokeWidth="3" strokeLinecap="round" />
+<circle cx="27" cy="31" r="3" fill="#042f2e" />
 </svg>
 );
 }
